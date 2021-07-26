@@ -60,7 +60,7 @@ class Trainer(object):
         elif self.dataset == "MPII":
             self.numClasses  = 16
 
-        self.train_loader, self.val_loader = getDataloader(self.dataset, self.train_dir,\
+        self.train_loader, self.val_loader, _ = getDataloader(self.dataset, self.train_dir, self.val_dir,
             self.val_dir, self.sigma, self.stride, self.workers, self.batch_size)
 
         model = unipose(self.dataset, num_classes=self.numClasses,backbone='resnet',output_stride=16,sync_bn=True,freeze_bn=False, stride=self.stride)
@@ -94,7 +94,7 @@ class Trainer(object):
         self.bestPCKh = 0
 
         # Print model summary and metrics
-        dump_input = torch.rand((1, 3, 368, 368))
+        dump_input = torch.rand((1, 3, 368, 368)).cuda()
         print(get_model_summary(self.model, dump_input))
 
     def training(self, epoch):
@@ -182,6 +182,8 @@ class Trainer(object):
 
         if mAP > self.isBest:
             self.isBest = mAP
+            if not self.args.model_name:
+                self.args.model_name = "checkpoint"
             save_checkpoint({'state_dict': self.model.state_dict()}, self.isBest, self.args.model_name)
             print("Model saved to "+self.args.model_name)
 
@@ -258,13 +260,13 @@ epochs        =  100
 
 args = parser.parse_args()
 
-if args.dataset == 'LSP':
-    args.train_dir  = '/PATH/TO/LSP/TRAIN'
-    args.val_dir    = '/PATH/TO/LSP/VAL'
-    args.pretrained = '/PATH/TO/WEIGHTS'
-elif args.dataset == 'MPII':
-    args.train_dir  = '/PATH/TO/MPIII/TRAIN'
-    args.val_dir    = '/PATH/TO/MPIII/VAL'
+# if args.dataset == 'LSP':
+#     args.train_dir  = '/PATH/TO/LSP/TRAIN'
+#     args.val_dir    = '/PATH/TO/LSP/VAL'
+#     args.pretrained = '/PATH/TO/WEIGHTS'
+# elif args.dataset == 'MPII':
+#     args.train_dir  = '/PATH/TO/MPIII/TRAIN'
+#     args.val_dir    = '/PATH/TO/MPIII/VAL'
 
 trainer = Trainer(args)
 for epoch in range(starter_epoch, epochs):

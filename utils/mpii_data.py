@@ -1,19 +1,15 @@
 # -*-coding:UTF-8-*-
 from __future__ import print_function, absolute_import
 
-import utils.Mytransforms as Mytransforms
-import numpy as np
-import random
-import scipy
-import math
 import json
-import glob
-import cv2
-import sys
 import os
 
+import cv2
+import numpy as np
 import torch
 import torch.utils.data as data
+
+import utils.Mytransforms as Mytransforms
 
 
 def get_transform(center, scale, resolution):
@@ -38,7 +34,7 @@ def transformImage(pt, center, scale, resolution):
 
 
 def crop(img, points, center, scale, resolution):
-    upperLeft   = np.array(transformImage([0, 0], center, scale, resolution))
+    upperLeft = np.array(transformImage([0, 0], center, scale, resolution))
     bottomRight = np.array(transformImage(resolution, center, scale, resolution))
 
     # Range to fill new array
@@ -49,9 +45,8 @@ def crop(img, points, center, scale, resolution):
     old_y = max(0, upperLeft[1]), min(img.shape[0], bottomRight[1])
     new_img = img[old_y[0]:old_y[1], old_x[0]:old_x[1]]
 
-
-    points[:,0] = points[:,0] - max(0, upperLeft[0])# + max(0, -upperLeft[0])
-    points[:,1] = points[:,1] - max(0, upperLeft[1])# + max(0, -upperLeft[1])
+    points[:, 0] = points[:, 0] - max(0, upperLeft[0])  # + max(0, -upperLeft[0])
+    points[:, 1] = points[:, 1] - max(0, upperLeft[1])  # + max(0, -upperLeft[1])
 
     center[0] -= max(0, upperLeft[0])
     center[1] -= max(0, upperLeft[1])
@@ -67,89 +62,74 @@ def guassian_kernel(size_w, size_h, center_x, center_y, sigma):
 
 class mpii(data.Dataset):
     def __init__(self, root_dir, sigma, is_train, transform=None):
-        self.width       = 368
-        self.height      = 368
+        self.width = 368
+        self.height = 368
         self.transformer = transform
-        self.is_train    = is_train
-        self.sigma       = sigma
-        self.parts_num   = 16
-        self.stride      = 8
+        self.is_train = is_train
+        self.sigma = sigma
+        self.parts_num = 16
+        self.stride = 8
 
-        self.labels_dir  = root_dir
-        self.images_dir  = root_dir + 'images/'
+        self.labels_dir = root_dir
+        self.images_dir = root_dir + 'images/'
 
         self.videosFolders = {}
-        self.labelFiles    = {}
-        self.full_img_List = {}
-        self.numPeople     = []
+        self.labelFiles = {}
+        self.full_img_list = {}
+        self.numPeople = []
 
-
-        with open(self.labels_dir+"mpii_annotations.json") as anno_file:
+        with open(self.labels_dir + "mpii_%s.json" % (self.is_train.lower())) as anno_file:
             self.anno = json.load(anno_file)
 
-        self.train_list = []
-        self.val_list   = []
+        self.img_list = []
 
-        for idx,val in enumerate(self.anno):
-            if val['isValidation'] == True:
-                self.val_list.append(idx)
-            else:
-                self.train_list.append(idx)
+        for idx, val in enumerate(self.anno):
+            self.img_list.append(idx)
 
-
-        if is_train == "Train":
-            self.img_List = self.train_list
-            print("Train images ",len(self.img_List))
-
-        elif is_train == "Val":
-            self.img_List = self.val_list
-            print("Val   images ",len(self.img_List))
-
+        print("No. images:", len(self.img_list))
 
     def __getitem__(self, index):
         scale_factor = 0.25
 
-        variable = self.anno[self.img_List[index]]
-        
-        while not os.path.isfile(self.labels_dir + variable['img_paths'][:-4]+'.png'):
-            index = index - 1
-            variable = self.anno[self.img_List[index]]
+        variable = self.anno[self.img_list[index]]
 
-        img_path  = self.images_dir + variable['img_paths']
-        
+        while not os.path.isfile(self.images_dir + variable['image']):
+            index = index - 1
+            variable = self.anno[self.img_list[index]]
+
+        img_path = self.images_dir + variable['image']
+
         # BBox was added to the labels by the authors to perform additional training and testing, as referred in the paper.
         # Intentionally left as comment since it is not part of the dataset.
-#         bbox      = np.load(self.labels_dir + "BBOX/" + variable['img_paths'][:-4] + '.npy')
+        #         bbox      = np.load(self.labels_dir + "BBOX/" + variable['img_paths'][:-4] + '.npy')
 
-        points   = torch.Tensor(variable['joint_self'])
-        center   = torch.Tensor(variable['objpos'])
-        scale    = variable['scale_provided']
-
+        points = torch.Tensor(variable['joints'])
+        center = torch.Tensor(variable['center'])
+        scale = variable['scale']
 
         if center[0] != -1:
-            center[1] = center[1] + 15*scale
-            scale     = scale*1.25
-
+            center[1] = center[1] + 15 * scale
+            scale = scale * 1.25
 
         # Single Person
         nParts = points.size(0)
-        img    = cv2.imread(img_path)
-#         box    = np.zeros((2,2))
+        img = cv2.imread(img_path)
+        #         box    = np.zeros((2,2))
 
-#         for i in range(bbox.shape[0]):
-#             if center[0] > bbox[i,0] and center[0] < bbox[i,2] and\
-#                center[1] > bbox[i,1] and center[1] < bbox[i,3]:
+        #         for i in range(bbox.shape[0]):
+        #             if center[0] > bbox[i,0] and center[0] < bbox[i,2] and\
+        #                center[1] > bbox[i,1] and center[1] < bbox[i,3]:
 
-#                upperLeft   = bbox[i,0:2].astype(int)
-#                bottomRight = bbox[i,-2:].astype(int)
-#                box = bbox[i,:]
+        #                upperLeft   = bbox[i,0:2].astype(int)
+        #                bottomRight = bbox[i,-2:].astype(int)
+        #                box = bbox[i,:]
 
-#                img[:,0:upperLeft[0],:]  = np.ones(img[:,0:upperLeft[0],:].shape) *255
-#                img[0:upperLeft[1],:,:]  = np.ones(img[0:upperLeft[1],:,:].shape) *255
-#                img[:,bottomRight[0]:,:] = np.ones(img[:,bottomRight[0]:,:].shape)*255
-#                img[bottomRight[1]:,:,:] = np.ones(img[bottomRight[1]:,:,:].shape)*255
+        #                img[:,0:upperLeft[0],:]  = np.ones(img[:,0:upperLeft[0],:].shape) *255
+        #                img[0:upperLeft[1],:,:]  = np.ones(img[0:upperLeft[1],:,:].shape) *255
+        #                img[:,bottomRight[0]:,:] = np.ones(img[:,bottomRight[0]:,:].shape)*255
+        #                img[bottomRight[1]:,:,:] = np.ones(img[bottomRight[1]:,:,:].shape)*255
 
-#                break
+        #                break
 
         # img, upperLeft, bottomRight, points, center = crop(img, points, center, scale, [self.height, self.width])
 
@@ -157,25 +137,28 @@ class mpii(data.Dataset):
 
         # img, kpt, center = self.transformer(img, points, center)
         if img.shape[0] != 368 or img.shape[1] != 368:
-            kpt[:,0] = kpt[:,0] * (368/img.shape[1])
-            kpt[:,1] = kpt[:,1] * (368/img.shape[0])
-            img = cv2.resize(img,(368,368))
+            kpt[:, 0] = kpt[:, 0] * (368 / img.shape[1])
+            kpt[:, 1] = kpt[:, 1] * (368 / img.shape[0])
+            img = cv2.resize(img, (368, 368))
         height, width, _ = img.shape
 
-        heatmap = np.zeros((int(height/self.stride), int(width/self.stride), int(len(kpt)+1)), dtype=np.float32)
+        heatmap = np.zeros((int(height / self.stride), int(width / self.stride), int(len(kpt) + 1)), dtype=np.float32)
         for i in range(len(kpt)):
             # resize from 368 to 46
             x = int(kpt[i][0]) * 1.0 / self.stride
             y = int(kpt[i][1]) * 1.0 / self.stride
-            heat_map = guassian_kernel(size_h=int(height/self.stride),size_w=int(width/self.stride), center_x=x, center_y=y, sigma=self.sigma)
+            heat_map = guassian_kernel(size_h=int(height / self.stride), size_w=int(width / self.stride), center_x=x,
+                                       center_y=y, sigma=self.sigma)
             heat_map[heat_map > 1] = 1
             heat_map[heat_map < 0.0099] = 0
             heatmap[:, :, i + 1] = heat_map
 
         heatmap[:, :, 0] = 1.0 - np.max(heatmap[:, :, 1:], axis=2)  # for background
 
-        centermap = np.zeros((int(height/self.stride), int(width/self.stride), 1), dtype=np.float32)
-        center_map = guassian_kernel(size_h=int(height/self.stride), size_w=int(width/self.stride), center_x=int(center[0]/self.stride), center_y=int(center[1]/self.stride), sigma=3)
+        centermap = np.zeros((int(height / self.stride), int(width / self.stride), 1), dtype=np.float32)
+        center_map = guassian_kernel(size_h=int(height / self.stride), size_w=int(width / self.stride),
+                                     center_x=int(center[0] / self.stride), center_y=int(center[1] / self.stride),
+                                     sigma=3)
         center_map[center_map > 1] = 1
         center_map[center_map < 0.0099] = 0
         centermap[:, :, 0] = center_map
@@ -183,11 +166,10 @@ class mpii(data.Dataset):
         orig_img = cv2.imread(img_path)
         img = Mytransforms.normalize(Mytransforms.to_tensor(img), [128.0, 128.0, 128.0],
                                      [256.0, 256.0, 256.0])
-        heatmap   = Mytransforms.to_tensor(heatmap)
+        heatmap = Mytransforms.to_tensor(heatmap)
         centermap = Mytransforms.to_tensor(centermap)
 
         return img, heatmap, centermap, img_path
 
-
     def __len__(self):
-        return len(self.img_List)
+        return len(self.img_list)
