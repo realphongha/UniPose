@@ -9,7 +9,7 @@ import numpy as np
 import torch
 import torch.utils.data as data
 
-import utils.Mytransforms as Mytransforms
+import unipose_utils.Mytransforms as Mytransforms
 
 
 def get_transform(center, scale, resolution):

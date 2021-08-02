@@ -9,19 +9,19 @@ import numpy as np
 import cv2
 import math
 sys.path.append("..")
-from utils.utils import adjust_learning_rate as adjust_learning_rate
-from utils.utils import save_checkpoint      as save_checkpoint
-from utils.utils import printAccuracies      as printAccuracies
-from utils.utils import guassian_kernel      as guassian_kernel
-from utils.utils import get_parameters       as get_parameters
-from utils       import Mytransforms         as  Mytransforms 
-from utils.utils import getDataloader        as getDataloader
-from utils.utils import getOutImages         as getOutImages
-from utils.utils import AverageMeter         as AverageMeter
-from utils.utils import draw_paint           as draw_paint
-from utils       import evaluate             as evaluate
-from utils.utils import get_kpts             as get_kpts
-from utils.utils import save_detection       as save_detection
+from unipose_utils.utils import adjust_learning_rate as adjust_learning_rate
+from unipose_utils.utils import save_checkpoint      as save_checkpoint
+from unipose_utils.utils import printAccuracies      as printAccuracies
+from unipose_utils.utils import guassian_kernel      as guassian_kernel
+from unipose_utils.utils import get_parameters       as get_parameters
+from unipose_utils       import Mytransforms         as  Mytransforms 
+from unipose_utils.utils import getDataloader        as getDataloader
+from unipose_utils.utils import getOutImages         as getOutImages
+from unipose_utils.utils import AverageMeter         as AverageMeter
+from unipose_utils.utils import draw_paint           as draw_paint
+from unipose_utils       import evaluate             as evaluate
+from unipose_utils.utils import get_kpts             as get_kpts
+from unipose_utils.utils import save_detection       as save_detection
 
 from model.video_unipose import unipose
 

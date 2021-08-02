@@ -166,7 +166,12 @@ def sample_with_heatmap(inp, out, num_rows=2, parts_to_show=None):
 
     return full_img
 
-def batch_with_heatmap(inputs, outputs, mean=torch.Tensor([0.5, 0.5, 0.5]).cuda(), num_rows=2, parts_to_show=None):
+def batch_with_heatmap(inputs, outputs, mean=None, num_rows=2, parts_to_show=None):
+    if not mean:
+        if torch.cuda.is_available():
+            mean = torch.Tensor([0.5, 0.5, 0.5]).cuda()
+        else:
+            mean = torch.Tensor([0.5, 0.5, 0.5])
     batch_img = []
     for n in range(min(inputs.size(0), 4)):
         inp = inputs[n] + mean.view(3, 1, 1).expand_as(inputs[n])

@@ -11,19 +11,19 @@ import math
 import os
 
 sys.path.append("..")
-from utils.utils import get_model_summary
-from utils.utils import adjust_learning_rate as adjust_learning_rate
-from utils.utils import save_checkpoint      as save_checkpoint
-from utils.utils import printAccuracies      as printAccuracies
-from utils.utils import guassian_kernel      as guassian_kernel
-from utils.utils import get_parameters       as get_parameters
-from utils       import Mytransforms         as  Mytransforms 
-from utils.utils import getDataloader        as getDataloader
-from utils.utils import getOutImages         as getOutImages
-from utils.utils import AverageMeter         as AverageMeter
-from utils.utils import draw_paint           as draw_paint
-from utils       import evaluate             as evaluate
-from utils.utils import get_kpts             as get_kpts
+from unipose_utils.utils import get_model_summary
+from unipose_utils.utils import adjust_learning_rate as adjust_learning_rate
+from unipose_utils.utils import save_checkpoint      as save_checkpoint
+from unipose_utils.utils import printAccuracies      as printAccuracies
+from unipose_utils.utils import guassian_kernel      as guassian_kernel
+from unipose_utils.utils import get_parameters       as get_parameters
+from unipose_utils       import Mytransforms         as  Mytransforms 
+from unipose_utils.utils import getDataloader        as getDataloader
+from unipose_utils.utils import getOutImages         as getOutImages
+from unipose_utils.utils import AverageMeter         as AverageMeter
+from unipose_utils.utils import draw_paint           as draw_paint
+from unipose_utils       import evaluate             as evaluate
+from unipose_utils.utils import get_kpts             as get_kpts
 
 from model.unipose import unipose
 
@@ -34,6 +34,74 @@ from collections import OrderedDict
 from torchsummary import summary
 
 from PIL import Image
+
+
+def get_model(ckpt="checkpoint_best.pth.tar", cpu=True):
+    model = unipose("MPII", num_classes=16, backbone='resnet', 
+                    output_stride=16,
+                    sync_bn=True, freeze_bn=False, stride=8)
+    print("Loading checkpoint...")
+    if cpu:
+        checkpoint = torch.load(ckpt, map_location=torch.device('cpu'))
+    else:
+        checkpoint = torch.load(ckpt)
+    if "state_dict" in checkpoint:
+        p = checkpoint['state_dict']
+    else:
+        p = checkpoint
+
+    state_dict = model.state_dict()
+    model_dict = {}
+
+    for k,v in p.items():
+        if k in state_dict:
+            model_dict[k] = v
+
+    state_dict.update(model_dict)
+    model.load_state_dict(state_dict)
+    print("Loaded checkpoint!")
+    model.eval()
+    return model
+
+
+def detect(image, model, cpu=True):
+    model.eval()
+    ori_img = cv2.resize(image, (368, 368))
+    img = np.array(ori_img, dtype=np.float32)
+    center   = [184, 184]
+    img  = img.transpose(2, 0, 1)
+    img  = torch.from_numpy(img)
+    mean = [128.0, 128.0, 128.0]
+    std  = [256.0, 256.0, 256.0]
+    for t, m, s in zip(img, mean, std):
+        t.sub_(m).div_(s)
+
+    img = torch.unsqueeze(img, 0)
+
+    input_var = img.cuda() if not cpu else img
+
+    heat = model(input_var)
+
+    heat = F.interpolate(heat, size=input_var.size()[2:], mode='bilinear', align_corners=True)
+
+    kpts = get_kpts(heat, img_h=368.0, img_w=368.0)
+
+    heat = heat.detach().cpu().numpy()
+
+    heat = heat[0].transpose(1,2,0)
+
+
+    for i in range(heat.shape[0]):
+        for j in range(heat.shape[1]):
+            for k in range(heat.shape[2]):
+                if heat[i,j,k] < 0:
+                    heat[i,j,k] = 0
+
+    heatmap = []
+    heatmap = cv2.applyColorMap(np.uint8(255*heat[:,:,0]), cv2.COLORMAP_JET)
+    im_heat  = cv2.addWeighted(ori_img, 0.6, heatmap, 0.4, 0)
+    return im_heat
+
 
 
 class Trainer(object):
@@ -259,52 +327,53 @@ class Trainer(object):
                 im_heat  = cv2.addWeighted(im, 0.6, heatmap, 0.4, 0)
                 cv2.imwrite('samples/heat/unipose' + str(i) + '.png', im_heat)
         
-parser = argparse.ArgumentParser()
-parser.add_argument('--pretrained', default=None,type=str, dest='pretrained')
-parser.add_argument('--dataset', type=str, dest='dataset', default='LSP')
-parser.add_argument('--train_dir', default='/PATH/TO/TRAIN',type=str, dest='train_dir')
-parser.add_argument('--val_dir', type=str, dest='val_dir', default='/PATH/TO/LSP/VAL')
-parser.add_argument('--model_name', default=None, type=str)
-parser.add_argument('--model_arch', default='unipose', type=str)
-parser.add_argument('--mode', default='train', type=str)
-parser.add_argument('--test_img', default='pose.jpeg', type=str)
-parser.add_argument('--gpu', default='0', type=str)
-parser.add_argument('--cpu', action='store_true', default=False, help='Use CPU instead of GPU or not?')
+if __name__ == "__main":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--pretrained', default=None,type=str, dest='pretrained')
+    parser.add_argument('--dataset', type=str, dest='dataset', default='LSP')
+    parser.add_argument('--train_dir', default='/PATH/TO/TRAIN',type=str, dest='train_dir')
+    parser.add_argument('--val_dir', type=str, dest='val_dir', default='/PATH/TO/LSP/VAL')
+    parser.add_argument('--model_name', default=None, type=str)
+    parser.add_argument('--model_arch', default='unipose', type=str)
+    parser.add_argument('--mode', default='train', type=str)
+    parser.add_argument('--test_img', default='pose.jpeg', type=str)
+    parser.add_argument('--gpu', default='0', type=str)
+    parser.add_argument('--cpu', action='store_true', default=False, help='Use CPU instead of GPU or not?')
 
-starter_epoch =    0
-epochs        =  100
+    starter_epoch =    0
+    epochs        =  100
 
-args = parser.parse_args()
+    args = parser.parse_args()
 
-# if args.dataset == 'LSP':
-#     args.train_dir  = '/PATH/TO/LSP/TRAIN'
-#     args.val_dir    = '/PATH/TO/LSP/VAL'
-#     args.pretrained = '/PATH/TO/WEIGHTS'
-# elif args.dataset == 'MPII':
-#     args.train_dir  = '/PATH/TO/MPIII/TRAIN'
-#     args.val_dir    = '/PATH/TO/MPIII/VAL'
+    # if args.dataset == 'LSP':
+    #     args.train_dir  = '/PATH/TO/LSP/TRAIN'
+    #     args.val_dir    = '/PATH/TO/LSP/VAL'
+    #     args.pretrained = '/PATH/TO/WEIGHTS'
+    # elif args.dataset == 'MPII':
+    #     args.train_dir  = '/PATH/TO/MPIII/TRAIN'
+    #     args.val_dir    = '/PATH/TO/MPIII/VAL'
 
-if not args.gpu.isdigit():
-    print("%s is not a valid GPU number" % args.gpu)
-    quit()
+    if not args.gpu.isdigit():
+        print("%s is not a valid GPU number" % args.gpu)
+        quit()
 
-if not args.cpu:
-    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
+    if not args.cpu:
+        os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+        os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 
-print("Start training with config:")
-print(args)
+    print("Start training with config:")
+    print(args)
 
-trainer = Trainer(args)
+    trainer = Trainer(args)
 
-if args.mode.lower() == "val":
-    trainer.validation(1, save=False)
-    quit()
+    if args.mode.lower() == "val":
+        trainer.validation(1, save=False)
+        quit()
 
-if args.mode.lower() == "train" or args.mode.lower() == "both":
-    for epoch in range(starter_epoch, epochs):
-        trainer.training(epoch)
-        trainer.validation(epoch)
-	
-if args.mode.lower() == "test" or args.mode.lower() == "both":
-    trainer.test(0)
+    if args.mode.lower() == "train" or args.mode.lower() == "both":
+        for epoch in range(starter_epoch, epochs):
+            trainer.training(epoch)
+            trainer.validation(epoch)
+        
+    if args.mode.lower() == "test" or args.mode.lower() == "both":
+        trainer.test(0)

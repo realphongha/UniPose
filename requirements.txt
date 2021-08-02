@@ -2,3 +2,7 @@ torch
 torchsummary
 scipy
 easydict
+seaborn
+opencv-python
+tqdm
+imutils
