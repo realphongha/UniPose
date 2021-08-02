@@ -187,12 +187,13 @@ class Trainer(object):
         PCKhAvg = PCKh.sum()/(self.numClasses+1)
         PCKAvg  =  PCK.sum()/(self.numClasses+1)
 
-        if mAP > self.isBest and save:
+        if mAP > self.isBest:
             self.isBest = mAP
-            if not self.args.model_name:
-                self.args.model_name = "checkpoint"
-            save_checkpoint({'state_dict': self.model.state_dict()}, self.isBest, self.args.model_name)
-            print("Model saved to "+self.args.model_name)
+            if save:
+                if not self.args.model_name:
+                    self.args.model_name = "checkpoint"
+                save_checkpoint({'state_dict': self.model.state_dict()}, self.isBest, self.args.model_name)
+                print("Model saved to "+self.args.model_name)
 
         if mPCKh > self.bestPCKh:
             self.bestPCKh = mPCKh
