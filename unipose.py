@@ -8,6 +8,8 @@ import sys
 import numpy as np
 import cv2
 import math
+import os
+
 sys.path.append("..")
 from utils.utils import get_model_summary
 from utils.utils import adjust_learning_rate as adjust_learning_rate
@@ -43,7 +45,7 @@ class Trainer(object):
         self.dataset      = args.dataset
 
 
-        self.workers      = 1
+        self.workers      = 4
         self.weight_decay = 0.0005
         self.momentum     = 0.9
         self.batch_size   = 8
@@ -65,9 +67,9 @@ class Trainer(object):
 
         model = unipose(self.dataset, num_classes=self.numClasses,backbone='resnet',output_stride=16,sync_bn=True,freeze_bn=False, stride=self.stride)
 
-        self.model       = model.cuda()
+        self.model       = model.cuda() if not self.args.cpu else model
 
-        self.criterion   = nn.MSELoss().cuda()
+        self.criterion   = nn.MSELoss().cuda() if not self.args.cpu else nn.MSELoss()
 
         self.optimizer   = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
@@ -76,8 +78,12 @@ class Trainer(object):
         self.iters       = 0
 
         if self.args.pretrained is not None:
+            print("Loading checkpoint...")
             checkpoint = torch.load(self.args.pretrained)
-            p = checkpoint['state_dict']
+            if "state_dict" in checkpoint:
+                p = checkpoint['state_dict']
+            else:
+                p = checkpoint
 
             state_dict = self.model.state_dict()
             model_dict = {}
@@ -88,6 +94,7 @@ class Trainer(object):
 
             state_dict.update(model_dict)
             self.model.load_state_dict(state_dict)
+            print("Loaded checkpoint!")
             
         self.isBest = 0
         self.bestPCK  = 0
@@ -107,8 +114,8 @@ class Trainer(object):
             learning_rate = adjust_learning_rate(self.optimizer, self.iters, self.lr, policy='step',
                                                  gamma=self.gamma, step_size=self.step_size)
 
-            input_var     =     input.cuda()
-            heatmap_var   =    heatmap.cuda()
+            input_var     =     input.cuda() if not self.args.cpu else input
+            heatmap_var   =    heatmap.cuda() if not self.args.cpu else heatmap
 
             self.optimizer.zero_grad()
 
@@ -130,7 +137,7 @@ class Trainer(object):
             if i == 10000:
             	break
 
-    def validation(self, epoch):
+    def validation(self, epoch, save=True):
         self.model.eval()
         tbar = tqdm(self.val_loader, desc='\r')
         val_loss = 0.0
@@ -145,8 +152,8 @@ class Trainer(object):
 
             cnt += 1
 
-            input_var     =      input.cuda()
-            heatmap_var   =    heatmap.cuda()
+            input_var     =      input.cuda() if not self.args.cpu else input
+            heatmap_var   =    heatmap.cuda() if not self.args.cpu else heatmap
             self.optimizer.zero_grad()
 
             heat = self.model(input_var)
@@ -180,7 +187,7 @@ class Trainer(object):
         PCKhAvg = PCKh.sum()/(self.numClasses+1)
         PCKAvg  =  PCK.sum()/(self.numClasses+1)
 
-        if mAP > self.isBest:
+        if mAP > self.isBest and save:
             self.isBest = mAP
             if not self.args.model_name:
                 self.args.model_name = "checkpoint"
@@ -198,15 +205,18 @@ class Trainer(object):
 
     def test(self,epoch):
         self.model.eval()
-        print("Testing") 
+        print("Testing...") 
+        img_path = args.test_img
+        img_ori  = np.array(cv2.resize(cv2.imread(img_path),(368,368)), dtype=np.float32)
+        img_ori2 = cv2.resize(cv2.imread(img_path),(368,368))
 
-        for idx in range(1):
-            print(idx,"/",2000)
-            img_path = '/PATH/TO/TEST/IMAGE'
+        no_samples = 1
+        for idx in range(no_samples):
+            print(idx+1, "/", no_samples)
 
             center   = [184, 184]
 
-            img  = np.array(cv2.resize(cv2.imread(img_path),(368,368)), dtype=np.float32)
+            img = img_ori.copy()
             img  = img.transpose(2, 0, 1)
             img  = torch.from_numpy(img)
             mean = [128.0, 128.0, 128.0]
@@ -218,7 +228,7 @@ class Trainer(object):
 
             self.model.eval()
 
-            input_var   = img.cuda()
+            input_var   = img.cuda() if not self.args.cpu else img
 
             heat = self.model(input_var)
 
@@ -239,13 +249,14 @@ class Trainer(object):
                             heat[i,j,k] = 0
                         
 
-            im       = cv2.resize(cv2.imread(img_path),(368,368))
+            # im       = cv2.resize(cv2.imread(img_path),(368,368))
+            im = img_ori2.copy()
 
             heatmap = []
             for i in range(self.numClasses+1):
                 heatmap = cv2.applyColorMap(np.uint8(255*heat[:,:,i]), cv2.COLORMAP_JET)
                 im_heat  = cv2.addWeighted(im, 0.6, heatmap, 0.4, 0)
-                cv2.imwrite('samples/heat/unipose'+str(i)+'.png', im_heat)
+                cv2.imwrite('samples/heat/unipose' + str(i) + '.png', im_heat)
         
 parser = argparse.ArgumentParser()
 parser.add_argument('--pretrained', default=None,type=str, dest='pretrained')
@@ -254,6 +265,10 @@ parser.add_argument('--train_dir', default='/PATH/TO/TRAIN',type=str, dest='trai
 parser.add_argument('--val_dir', type=str, dest='val_dir', default='/PATH/TO/LSP/VAL')
 parser.add_argument('--model_name', default=None, type=str)
 parser.add_argument('--model_arch', default='unipose', type=str)
+parser.add_argument('--mode', default='train', type=str)
+parser.add_argument('--test_img', default='pose.jpeg', type=str)
+parser.add_argument('--gpu', default='0', type=str)
+parser.add_argument('--cpu', action='store_true', default=False, help='Use CPU instead of GPU or not?')
 
 starter_epoch =    0
 epochs        =  100
@@ -268,10 +283,27 @@ args = parser.parse_args()
 #     args.train_dir  = '/PATH/TO/MPIII/TRAIN'
 #     args.val_dir    = '/PATH/TO/MPIII/VAL'
 
+if not args.gpu.isdigit():
+    print("%s is not a valid GPU number" % args.gpu)
+    quit()
+
+if not args.cpu:
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
+
+print("Start training with config:")
+print(args)
+
 trainer = Trainer(args)
-for epoch in range(starter_epoch, epochs):
-    trainer.training(epoch)
-    trainer.validation(epoch)
+
+if args.mode.lower() == "val":
+    trainer.validation(1, save=False)
+    quit()
+
+if args.mode.lower() == "train" or args.mode.lower() == "both":
+    for epoch in range(starter_epoch, epochs):
+        trainer.training(epoch)
+        trainer.validation(epoch)
 	
-# Uncomment for inference, demo, and samples for the trained model:
-# trainer.test(0)
+if args.mode.lower() == "test" or args.mode.lower() == "both":
+    trainer.test(0)

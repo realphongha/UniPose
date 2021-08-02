@@ -61,7 +61,7 @@ def guassian_kernel(size_w, size_h, center_x, center_y, sigma):
 
 
 class mpii(data.Dataset):
-    def __init__(self, root_dir, sigma, is_train, transform=None):
+    def __init__(self, root_dir, sigma, is_train, single_person=True, transform=None):
         self.width = 368
         self.height = 368
         self.transformer = transform
@@ -77,14 +77,46 @@ class mpii(data.Dataset):
         self.labelFiles = {}
         self.full_img_list = {}
         self.numPeople = []
+        self.single_person = single_person
 
         with open(self.labels_dir + "mpii_%s.json" % (self.is_train.lower())) as anno_file:
             self.anno = json.load(anno_file)
 
-        self.img_list = []
+        with open(self.labels_dir + "annot_mpii.json") as anno_file:
+            file = json.load(anno_file)
+            files = file["images"]
+            bbox = file["annotations"]
+        filename_mapping = dict()
+        for fn in files:
+            filename_mapping[fn["id"]] = fn["file_name"]
+ 
+        self.bbox_mapping = dict()
+        for bb in bbox:
+            if filename_mapping[bb["image_id"]] not in self.bbox_mapping:
+                self.bbox_mapping[filename_mapping[bb["image_id"]]] = list()
+            new_bb = (bb["bbox"][0], bb["bbox"][1], bb["bbox"][0]+bb["bbox"][2], bb["bbox"][1]+bb["bbox"][3])
+            self.bbox_mapping[filename_mapping[bb["image_id"]]].append(new_bb)
 
+        # print(self.bbox_mapping);quit()
+        # for fn in self.bbox_mapping:
+        #     img = cv2.imread(self.images_dir + fn)
+        #     for bb in self.bbox_mapping[fn]:
+        #         print(bb, bb[:-2], bb[-2:])
+        #         img = cv2.rectangle(img, (bb[0], bb[1]), (bb[0]+bb[2], bb[1]+bb[3]), (255, 0, 0), 2)
+        #     cv2.imwrite(fn, img)
+        #     quit()
+
+        self.img_list = []
+        self.new_anno = []
+
+        for val in self.anno:
+            if os.path.isfile(self.images_dir + val['image']) and val["image"] in self.bbox_mapping:
+                self.new_anno.append(val)
+
+        self.anno = self.new_anno
+        
         for idx, val in enumerate(self.anno):
-            self.img_list.append(idx)
+            self.img_list.append(idx) 
 
         print("No. images:", len(self.img_list))
 
@@ -93,9 +125,9 @@ class mpii(data.Dataset):
 
         variable = self.anno[self.img_list[index]]
 
-        while not os.path.isfile(self.images_dir + variable['image']):
-            index = index - 1
-            variable = self.anno[self.img_list[index]]
+        # while not os.path.isfile(self.images_dir + variable['image']) or variable["image"] not in self.bbox_mapping:
+        #     index = index - 1
+        #     variable = self.anno[self.img_list[index]]
 
         img_path = self.images_dir + variable['image']
 
@@ -114,24 +146,26 @@ class mpii(data.Dataset):
         # Single Person
         nParts = points.size(0)
         img = cv2.imread(img_path)
-        #         box    = np.zeros((2,2))
+        if self.single_person:
+            bbox = np.array(self.bbox_mapping[variable["image"]])
+            box = np.zeros((2,2))
 
-        #         for i in range(bbox.shape[0]):
-        #             if center[0] > bbox[i,0] and center[0] < bbox[i,2] and\
-        #                center[1] > bbox[i,1] and center[1] < bbox[i,3]:
+            for i in range(bbox.shape[0]):
+                if center[0] > bbox[i,0] and center[0] < bbox[i,2] and\
+                    center[1] > bbox[i,1] and center[1] < bbox[i,3]:
 
-        #                upperLeft   = bbox[i,0:2].astype(int)
-        #                bottomRight = bbox[i,-2:].astype(int)
-        #                box = bbox[i,:]
+                    upperLeft   = bbox[i,0:2].astype(int)
+                    bottomRight = bbox[i,-2:].astype(int)
+                    box = bbox[i,:]
 
-        #                img[:,0:upperLeft[0],:]  = np.ones(img[:,0:upperLeft[0],:].shape) *255
-        #                img[0:upperLeft[1],:,:]  = np.ones(img[0:upperLeft[1],:,:].shape) *255
-        #                img[:,bottomRight[0]:,:] = np.ones(img[:,bottomRight[0]:,:].shape)*255
-        #                img[bottomRight[1]:,:,:] = np.ones(img[bottomRight[1]:,:,:].shape)*255
+                    img[:,0:upperLeft[0],:]  = np.ones(img[:,0:upperLeft[0],:].shape) *255
+                    img[0:upperLeft[1],:,:]  = np.ones(img[0:upperLeft[1],:,:].shape) *255
+                    img[:,bottomRight[0]:,:] = np.ones(img[:,bottomRight[0]:,:].shape)*255
+                    img[bottomRight[1]:,:,:] = np.ones(img[bottomRight[1]:,:,:].shape)*255
 
-        #                break
+                    break
 
-        # img, upperLeft, bottomRight, points, center = crop(img, points, center, scale, [self.height, self.width])
+            img, upperLeft, bottomRight, points, center = crop(img, points, center, scale, [self.height, self.width])
 
         kpt = points
 
@@ -163,13 +197,40 @@ class mpii(data.Dataset):
         center_map[center_map < 0.0099] = 0
         centermap[:, :, 0] = center_map
 
-        orig_img = cv2.imread(img_path)
+        # orig_img = img.copy()
         img = Mytransforms.normalize(Mytransforms.to_tensor(img), [128.0, 128.0, 128.0],
                                      [256.0, 256.0, 256.0])
         heatmap = Mytransforms.to_tensor(heatmap)
         centermap = Mytransforms.to_tensor(centermap)
 
+        # return img, heatmap, centermap, img_path, orig_img
         return img, heatmap, centermap, img_path
 
     def __len__(self):
         return len(self.img_list)
+
+
+if __name__ == "__main__":
+    ds = mpii("/mnt/hdd10tb/Users/phonghh/data/pose/MPII/", 1, "Train")
+    for i in range(200, 240):
+        img, heatmap, centermap, img_path, orig_img = ds[i]
+        img_name = img_path.split("/")[-1].split(".")[0]
+        image = cv2.imread(img_path)
+        # print(centermap.shape)
+        # print(centermap[0].shape)
+        # print(centermap)
+        # cv2.imwrite(img_name + "_centermap.jpg", centermap[0].numpy())
+        # print(img.shape)
+        # print(img)
+        # quit()
+        # img = img.numpy()
+        # img = img.transpose(1, 2, 0)
+        # cv2.imwrite(img_name + "_ori.jpg", cv2.resize(image, (512, 512), interpolation=cv2.INTER_AREA))
+        # cv2.imwrite(img_name + ".jpg", cv2.resize(orig_img, (512, 512), interpolation=cv2.INTER_AREA))
+        print(heatmap)
+        print(heatmap.shape)
+        heatmap = heatmap.sum(axis=0)
+        heatmap /= heatmap.max()
+        # print(heatmap)
+        # print(heatmap.shape)
+        # cv2.imwrite(img_name + "_heatmap.jpg", cv2.resize(heatmap.numpy(), (512, 512), interpolation=cv2.INTER_AREA))

@@ -107,7 +107,7 @@ def get_kpts(maps, img_h=368.0, img_w=368.0):
     return kpts
 
 
-def draw_paint(im, kpts, mapNumber, epoch, model_arch, dataset):
+def draw_paint(im_path, kpts, mapNumber, epoch, model_arch, dataset):
     #       RED           GREEN           RED          YELLOW          YELLOW          PINK          GREEN
     colors = [[000, 000, 255], [000, 255, 000], [000, 000, 255], [255, 255, 000], [255, 255, 000], [255, 000, 255],
               [000, 255, 000], \
@@ -165,7 +165,7 @@ def draw_paint(im, kpts, mapNumber, epoch, model_arch, dataset):
         colors = [[000, 255, 000], [000, 000, 255], [255, 000, 000], [000, 255, 000], [255, 255, 51], [255, 000, 255], \
                   [000, 000, 255], [000, 000, 255], [000, 000, 255], [000, 000, 255]]
 
-    # im = cv2.resize(cv2.imread(img_path),(368,368))
+    im = cv2.resize(cv2.imread(im_path),(368,368))
     # draw points
     for k in kpts:
         x = k[0]
