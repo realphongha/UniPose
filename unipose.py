@@ -304,8 +304,6 @@ class Trainer(object):
                         if heat[i,j,k] < 0:
                             heat[i,j,k] = 0
                         
-
-            # im       = cv2.resize(cv2.imread(img_path),(368,368))
             im = img_ori2.copy()
 
             heatmap = []
@@ -314,7 +312,7 @@ class Trainer(object):
                 im_heat  = cv2.addWeighted(im, 0.6, heatmap, 0.4, 0)
                 cv2.imwrite('samples/heat/unipose' + str(i) + '.png', im_heat)
         
-if __name__ == "__main":
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--pretrained', default=None,type=str, dest='pretrained')
     parser.add_argument('--dataset', type=str, dest='dataset', default='LSP')
@@ -325,20 +323,14 @@ if __name__ == "__main":
     parser.add_argument('--mode', default='train', type=str)
     parser.add_argument('--test_img', default='pose.jpeg', type=str)
     parser.add_argument('--gpu', default='0', type=str)
+    parser.add_argument('--epoch', default=100, type=int)
     parser.add_argument('--cpu', action='store_true', default=False, help='Use CPU instead of GPU or not?')
-
-    starter_epoch =    0
-    epochs        =  100
-
     args = parser.parse_args()
 
-    # if args.dataset == 'LSP':
-    #     args.train_dir  = '/PATH/TO/LSP/TRAIN'
-    #     args.val_dir    = '/PATH/TO/LSP/VAL'
-    #     args.pretrained = '/PATH/TO/WEIGHTS'
-    # elif args.dataset == 'MPII':
-    #     args.train_dir  = '/PATH/TO/MPIII/TRAIN'
-    #     args.val_dir    = '/PATH/TO/MPIII/VAL'
+    starter_epoch =    0
+    epochs        =  args.epoch
+
+    args = parser.parse_args()
 
     if not args.gpu.isdigit():
         print("%s is not a valid GPU number" % args.gpu)
