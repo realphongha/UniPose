@@ -24,7 +24,7 @@ from unipose_utils.utils import AverageMeter         as AverageMeter
 from unipose_utils.utils import draw_paint           as draw_paint
 from unipose_utils       import evaluate             as evaluate
 from unipose_utils.utils import get_kpts             as get_kpts
-from unipose_utils.utils import draw_keypoints       as draw_keypoints
+from unipose_utils.utils import draw_paint_simple    as draw_paint_simple
 
 from model.unipose import unipose
 
@@ -86,7 +86,7 @@ def detect(image, model, cpu=True):
     heat = F.interpolate(heat, size=input_var.size()[2:], mode='bilinear', align_corners=True)
 
     kpts = get_kpts(heat, img_h=368.0, img_w=368.0)
-    draw_keypoints(ori_img, kpts)
+    ori_img = draw_paint_simple(ori_img, kpts, "MPII")
 
     return ori_img
 
@@ -116,9 +116,10 @@ class Trainer(object):
             self.numClasses  = 14
         elif self.dataset == "MPII":
             self.numClasses  = 16
-
-        self.train_loader, self.val_loader, _ = getDataloader(self.dataset, self.train_dir, self.val_dir,
-            self.val_dir, self.sigma, self.stride, self.workers, self.batch_size)
+        
+        if args.mode != "test":
+            self.train_loader, self.val_loader, _ = getDataloader(self.dataset, self.train_dir, self.val_dir,
+                self.val_dir, self.sigma, self.stride, self.workers, self.batch_size)
 
         model = unipose(self.dataset, num_classes=self.numClasses,backbone='resnet',output_stride=16,sync_bn=True,freeze_bn=False, stride=self.stride)
 
@@ -134,7 +135,10 @@ class Trainer(object):
 
         if self.args.pretrained is not None:
             print("Loading checkpoint...")
-            checkpoint = torch.load(self.args.pretrained)
+            if args.cpu:
+                checkpoint = torch.load(self.args.pretrained, map_location=torch.device('cpu'))
+            else:
+                checkpoint = torch.load(self.args.pretrained)
             if "state_dict" in checkpoint:
                 p = checkpoint['state_dict']
             else:
@@ -156,7 +160,10 @@ class Trainer(object):
         self.bestPCKh = 0
 
         # Print model summary and metrics
-        dump_input = torch.rand((1, 3, 368, 368)).cuda()
+        if args.cpu:
+            dump_input = torch.rand((1, 3, 368, 368))
+        else:
+            dump_input = torch.rand((1, 3, 368, 368)).cuda()
         print(get_model_summary(self.model, dump_input))
 
     def training(self, epoch):

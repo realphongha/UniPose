@@ -110,6 +110,95 @@ def draw_keypoints(img, kpts, color=(0, 255, 0), thickness=3):
     for point in kpts:
         cv2.circle(img, (int(point[0]), int(point[1])), thickness, color, -1, cv2.LINE_AA)
 
+def draw_paint_simple(im, kpts, dataset, thickness=-1, r=3, color=(0, 0, 255)):
+    # im is 368x368
+    #       RED           GREEN           RED          YELLOW          YELLOW          PINK          GREEN
+    colors = [[000, 000, 255], [000, 255, 000], [000, 000, 255], [255, 255, 000], [255, 255, 000], [255, 000, 255],
+              [000, 255, 000], \
+              [255, 000, 000], [255, 255, 000], [255, 000, 255], [000, 255, 000], [000, 255, 000], [000, 000, 255],
+              [255, 255, 000], [255, 000, 000]]
+    #       BLUE          YELLOW          PINK          GREEN          GREEN           RED          YELLOW           BLUE
+
+    if dataset == "LSP":
+        limbSeq = [[13, 12], [12, 9], [12, 8], [9, 10], [8, 7], [10, 11], [7, 6], [12, 3], \
+                   [12, 2], [2, 1], [1, 0], [3, 4], [4, 5], [15, 16], [16, 18], [17, 18], [15, 17]]
+        kpts[15][0] = kpts[15][0] - 25
+        kpts[15][1] = kpts[15][1] - 50
+        kpts[16][0] = kpts[16][0] - 25
+        kpts[16][1] = kpts[16][1] + 50
+        kpts[17][0] = kpts[17][0] + 25
+        kpts[17][1] = kpts[17][1] - 50
+        kpts[18][0] = kpts[18][0] + 25
+        kpts[18][1] = kpts[18][1] + 50
+
+
+    elif dataset == "MPII":
+        #    HEAD    R.SLDR  R.BICEP  R.FRARM   L.SLDR  L.BICEP  L.FRARM   TORSO    L.HIP   L.THIGH   L.CALF   R.HIP   R.THIGH   R.CALF  EXT.HEAD
+        limbSeq = [[8, 9], [7, 12], [12, 11], [11, 10], [7, 13], [13, 14], [14, 15], [7, 6], [6, 2], [2, 1], [1, 0],
+                   [6, 3], [3, 4], [4, 5], [7, 8]]
+
+    elif dataset == "NTID":
+        limbSeq = [[0, 1], [1, 2], [2, 3], [2, 4], [4, 5], [5, 6], [2, 8], [8, 9], \
+                   [9, 10], [0, 12], [0, 13], [20, 21], [21, 23], [20, 22], [22, 23]]
+        kpts[20][0] = kpts[20][0] - 25
+        kpts[20][1] = kpts[20][1] - 50
+        kpts[21][0] = kpts[21][0] - 25
+        kpts[21][1] = kpts[21][1] + 50
+        kpts[22][0] = kpts[22][0] + 25
+        kpts[22][1] = kpts[22][1] - 50
+        kpts[23][0] = kpts[23][0] + 25
+        kpts[23][1] = kpts[23][1] + 50
+
+        #    HEAD    R.SLDR  R.BICEP  R.FRARM   L.SLDR  L.BICEP  L.FRARM   TORSO    L.HIP   L.THIGH   L.CALF   R.HIP   R.THIGH   R.CALF  EXT.HEAD
+        limbSeq = [[8, 7], [7, 12], [12, 11], [11, 10], [7, 13], [13, 14], [14, 15], [7, 6], [5, 2], [2, 1], [1, 0],
+                   [6, 3], [3, 4], [4, 5], [8, 7]]
+
+    elif dataset == "BBC":
+        #    HEAD    R.SLDR  R.BICEP  R.FRARM   L.SLDR  L.BICEP  L.FRARM
+        limbSeq = [[0, 12], [1, 3], [2, 4], [3, 5], [4, 6], [5, 6], [8, 9], [8, 10], [10, 11], [9, 11]]
+        kpts.append([int((kpts[5][0] + kpts[6][0]) / 2), int((kpts[5][1] + kpts[6][1]) / 2)])
+        kpts[8][0] = kpts[8][0] - 25
+        kpts[8][1] = kpts[8][1] - 50
+        kpts[9][0] = kpts[9][0] - 25
+        kpts[9][1] = kpts[9][1] + 50
+        kpts[10][0] = kpts[10][0] + 25
+        kpts[10][1] = kpts[10][1] - 50
+        kpts[11][0] = kpts[11][0] + 25
+        kpts[11][1] = kpts[11][1] + 50
+
+        colors = [[000, 255, 000], [000, 000, 255], [255, 000, 000], [000, 255, 000], [255, 255, 51], [255, 000, 255], \
+                  [000, 000, 255], [000, 000, 255], [000, 000, 255], [000, 000, 255]]
+    
+    # draw points
+    for k in kpts:
+        x = k[0]
+        y = k[1]
+        cv2.circle(im, (x, y), radius=r, thickness=thickness, color=color)
+
+    # draw lines
+    for i in range(len(limbSeq)):
+        cur_im = im.copy()
+        limb = limbSeq[i]
+        [Y0, X0] = kpts[limb[0]]
+        [Y1, X1] = kpts[limb[1]]
+        # mX = np.mean([X0, X1])
+        # mY = np.mean([Y0, Y1])
+        # length = ((X0 - X1) ** 2 + (Y0 - Y1) ** 2) ** 0.5
+        # angle = math.degrees(math.atan2(X0 - X1, Y0 - Y1))
+        # polygon = cv2.ellipse2Poly((int(mY), int(mX)), (int(length / 2), 4), int(angle), 0, 360, 1)
+        # cv2.fillConvexPoly(cur_im, polygon, colors[i])
+        # if X0!=0 and Y0!=0 and X1!=0 and Y1!=0:
+        #     im = cv2.addWeighted(im, 0.4, cur_im, 0.6, 0)
+
+        if X0 != 0 and Y0 != 0 and X1 != 0 and Y1 != 0:
+            if i < len(limbSeq) - 4:
+                cv2.line(cur_im, (Y0, X0), (Y1, X1), colors[i], 5)
+            else:
+                cv2.line(cur_im, (Y0, X0), (Y1, X1), [0, 0, 255], 5)
+
+        im = cv2.addWeighted(im, 0.2, cur_im, 0.8, 0)
+    return im
+
 def draw_paint(im_path, kpts, mapNumber, epoch, model_arch, dataset):
     #       RED           GREEN           RED          YELLOW          YELLOW          PINK          GREEN
     colors = [[000, 000, 255], [000, 255, 000], [000, 000, 255], [255, 255, 000], [255, 255, 000], [255, 000, 255],

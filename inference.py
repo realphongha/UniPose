@@ -10,6 +10,7 @@ from unipose import detect, get_model
 
 parser = argparse.ArgumentParser(description="Run inference on videos")
 parser.add_argument("--path", default="webcam", type=str, help="Path to video. Leave it empty to use webcam")
+parser.add_argument("--ckpt", default="checkpoint_best.pth.tar", type=str, help="Path to pretrained model")
 parser.add_argument("--gpu", action="store_true", default=False, help="Use GPU or not?")
 args = parser.parse_args()
 
@@ -18,7 +19,7 @@ person_detector.conf = 0.25  # confidence threshold (0-1)
 person_detector.iou = 0.45  # NMS IoU threshold (0-1)
 person_detector.classes = [0]
 
-pose_detector = get_model("checkpoint_best.pth.tar")
+pose_detector = get_model(args.ckpt)
 
 if args.gpu:
     # person_detector = person_detector.cuda()
@@ -40,10 +41,6 @@ if args.path == "webcam":
         if args.gpu:
             results = person_detector(frame).xyxy[0].cpu().detach().numpy()
         else:
-            results = person_detector(frame)
-            print(results)
-            print(type(results))
-            quit()
             results = person_detector(frame).xyxy[0].numpy()
         for res in results:
             x1, y1, x2, y2 = res[:-2]
@@ -83,8 +80,10 @@ else:
                             (frame_w, frame_h))
 
     for i in tqdm(range(nb_frames)):
+        if i > 40:
+            break
         _, frame = video_reader.read()
-        if not frame:
+        if frame is None:
             continue
         if args.gpu:
             results = person_detector(frame).xyxy[0].cpu().detach().numpy()
