@@ -14,7 +14,15 @@ parser.add_argument("--gpu", action="store_true", default=False, help="Use GPU o
 args = parser.parse_args()
 
 person_detector = torch.hub.load('ultralytics/yolov5', 'yolov5s')
+person_detector.conf = 0.25  # confidence threshold (0-1)
+person_detector.iou = 0.45  # NMS IoU threshold (0-1)
+person_detector.classes = [0]
+
 pose_detector = get_model("checkpoint_best.pth.tar")
+
+if args.gpu:
+    # person_detector = person_detector.cuda()
+    pose_detector = pose_detector.cuda()
 
 if args.path == "webcam":
     video_cap = cv2.VideoCapture(0)
@@ -29,23 +37,24 @@ if args.path == "webcam":
         # Capture frame-by-frame
         ret, frame = video_cap.read()
         frame = cv2.flip(frame, 1)
-        results = person_detector(frame).xyxy[0].numpy()
-        cropped = None
+        if args.gpu:
+            results = person_detector(frame).xyxy[0].cpu().detach().numpy()
+        else:
+            results = person_detector(frame)
+            print(results)
+            print(type(results))
+            quit()
+            results = person_detector(frame).xyxy[0].numpy()
         for res in results:
-            if res[-1] == 0:
-                x1, y1, x2, y2 = res[:-2]
-                x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
-                # frame = cv2.rectangle(frame, (x1, y1, x2, y2), 
-                #     (255, 0, 0), 2)
-                cropped = frame[y1:y2, x1:x2]
-                break
-        
-        
-        # Display the resulting frame
-        if cropped is not None:
-            cropped = detect(cropped, pose_detector)
+            x1, y1, x2, y2 = res[:-2]
+            x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+            cropped = frame[y1:y2, x1:x2]
+            cropped = detect(cropped, pose_detector, not args.gpu)
             cropped = cv2.resize(cropped, (x2-x1, y2-y1))
             frame[y1:y2, x1:x2] = cropped
+            frame = cv2.rectangle(frame, (x1, y1, x2, y2), 
+                (255, 0, 0), 2)
+            break
         cv2.imshow('Video', frame)
             
         if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -66,32 +75,31 @@ else:
     nb_frames = int(video_reader.get(cv2.CAP_PROP_FRAME_COUNT))
     frame_h = int(video_reader.get(cv2.CAP_PROP_FRAME_HEIGHT))
     frame_w = int(video_reader.get(cv2.CAP_PROP_FRAME_WIDTH))
-
+    fps = int(video_reader.get(cv2.CAP_PROP_FPS))
+    
     video_writer = cv2.VideoWriter(video_out,
                             cv2.VideoWriter_fourcc(*'MPEG'), 
-                            50.0, 
+                            fps, 
                             (frame_w, frame_h))
 
     for i in tqdm(range(nb_frames)):
-        if i > 20:
-            break
         _, frame = video_reader.read()
-        
-        # frame = cv2.flip(frame, 1)
-        results = person_detector(frame).xyxy[0].numpy()
-        cropped = None
+        if not frame:
+            continue
+        if args.gpu:
+            results = person_detector(frame).xyxy[0].cpu().detach().numpy()
+        else:
+            results = person_detector(frame).xyxy[0].numpy()
         for res in results:
-            if res[-1] == 0:
-                x1, y1, x2, y2 = res[:-2]
-                x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
-                # frame = cv2.rectangle(frame, (x1, y1, x2, y2), 
-                #     (255, 0, 0), 2)
-                cropped = frame[y1:y2, x1:x2]
-                cropped = detect(cropped, pose_detector)
-                cropped = cv2.resize(cropped, (x2-x1, y2-y1))
-                frame[y1:y2, x1:x2] = cropped
+            x1, y1, x2, y2 = res[:-2]
+            x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+            cropped = frame[y1:y2, x1:x2]
+            cropped = detect(cropped, pose_detector, not args.gpu)
+            cropped = cv2.resize(cropped, (x2-x1, y2-y1))
+            frame[y1:y2, x1:x2] = cropped
+            frame = cv2.rectangle(frame, (x1, y1, x2, y2), 
+                (255, 0, 0), 2)
         video_writer.write(np.uint8(frame))
-        fps = FPS().start()
 
     video_reader.release()
     video_writer.release()

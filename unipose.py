@@ -24,6 +24,7 @@ from unipose_utils.utils import AverageMeter         as AverageMeter
 from unipose_utils.utils import draw_paint           as draw_paint
 from unipose_utils       import evaluate             as evaluate
 from unipose_utils.utils import get_kpts             as get_kpts
+from unipose_utils.utils import draw_keypoints       as draw_keypoints
 
 from model.unipose import unipose
 
@@ -85,23 +86,9 @@ def detect(image, model, cpu=True):
     heat = F.interpolate(heat, size=input_var.size()[2:], mode='bilinear', align_corners=True)
 
     kpts = get_kpts(heat, img_h=368.0, img_w=368.0)
+    draw_keypoints(ori_img, kpts)
 
-    heat = heat.detach().cpu().numpy()
-
-    heat = heat[0].transpose(1,2,0)
-
-
-    for i in range(heat.shape[0]):
-        for j in range(heat.shape[1]):
-            for k in range(heat.shape[2]):
-                if heat[i,j,k] < 0:
-                    heat[i,j,k] = 0
-
-    heatmap = []
-    heatmap = cv2.applyColorMap(np.uint8(255*heat[:,:,0]), cv2.COLORMAP_JET)
-    im_heat  = cv2.addWeighted(ori_img, 0.6, heatmap, 0.4, 0)
-    return im_heat
-
+    return ori_img
 
 
 class Trainer(object):

@@ -106,6 +106,9 @@ def get_kpts(maps, img_h=368.0, img_w=368.0):
         kpts.append([x, y])
     return kpts
 
+def draw_keypoints(img, kpts, color=(0, 255, 0), thickness=3):
+    for point in kpts:
+        cv2.circle(img, (int(point[0]), int(point[1])), thickness, color, -1, cv2.LINE_AA)
 
 def draw_paint(im_path, kpts, mapNumber, epoch, model_arch, dataset):
     #       RED           GREEN           RED          YELLOW          YELLOW          PINK          GREEN
