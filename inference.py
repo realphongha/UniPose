@@ -27,8 +27,6 @@ if args.gpu:
 
 if args.path == "webcam":
     video_cap = cv2.VideoCapture(0)
-    fps = FPS().start()
-
     while True:
         if not video_cap.isOpened():
             print('Unable to load camera.')
@@ -56,12 +54,7 @@ if args.path == "webcam":
             
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-    
-        # Display the resulting frame
-        # cv2.imshow('Video', frame)
-        fps = FPS().start()
 
-    fps.stop()
     video_cap.release()
     cv2.destroyAllWindows()
 
@@ -80,8 +73,6 @@ else:
                             (frame_w, frame_h))
 
     for i in tqdm(range(nb_frames)):
-        if i > 40:
-            break
         _, frame = video_reader.read()
         if frame is None:
             continue

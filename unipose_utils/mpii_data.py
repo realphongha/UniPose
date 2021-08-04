@@ -136,6 +136,7 @@ class mpii(data.Dataset):
         #         bbox      = np.load(self.labels_dir + "BBOX/" + variable['img_paths'][:-4] + '.npy')
 
         points = torch.Tensor(variable['joints'])
+        ori_pts = variable["joints"]
         center = torch.Tensor(variable['center'])
         scale = variable['scale']
 
@@ -178,6 +179,9 @@ class mpii(data.Dataset):
 
         heatmap = np.zeros((int(height / self.stride), int(width / self.stride), int(len(kpt) + 1)), dtype=np.float32)
         for i in range(len(kpt)):
+            # invisible points
+            if ori_pts[i][0] < 0 or ori_pts[i][1] < 0:
+                continue
             # resize from 368 to 46
             x = int(kpt[i][0]) * 1.0 / self.stride
             y = int(kpt[i][1]) * 1.0 / self.stride

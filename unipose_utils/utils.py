@@ -54,9 +54,9 @@ def adjust_learning_rate(optimizer, iters, base_lr, gamma, step_size, policy='st
     return lr
 
 
-def save_checkpoint(state, is_best, filename='checkpoint'):
+def save_checkpoint(state, is_best, path, filename='checkpoint'):
     if is_best:
-        torch.save(state, filename + '_best.pth.tar')
+        torch.save(state, os.path.join(path, filename + '_best.pth.tar'))
 
 
 def Config(filename):

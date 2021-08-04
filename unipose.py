@@ -152,7 +152,18 @@ class Trainer(object):
                     model_dict[k] = v
 
             state_dict.update(model_dict)
-            self.model.load_state_dict(state_dict)
+            try:
+                self.model.load_state_dict(state_dict)
+            except Exception as e:
+                print("Exception:", e)
+                state_dict = self.model.state_dict()
+                model_dict = {}
+
+                for k,v in p.items():
+                    if k in state_dict and "decoder" not in k:
+                        model_dict[k] = v
+                state_dict.update(model_dict)
+                self.model.load_state_dict(state_dict, strict=False)
             print("Loaded checkpoint!")
             
         self.isBest = 0
@@ -254,7 +265,7 @@ class Trainer(object):
             if save:
                 if not self.args.model_name:
                     self.args.model_name = "checkpoint"
-                save_checkpoint({'state_dict': self.model.state_dict()}, self.isBest, self.args.model_name)
+                save_checkpoint({'state_dict': self.model.state_dict()}, self.isBest, self.args.save_path, self.args.model_name)
                 print("Model saved to "+self.args.model_name)
 
         if mPCKh > self.bestPCKh:
@@ -329,6 +340,7 @@ if __name__ == "__main__":
     parser.add_argument('--model_arch', default='unipose', type=str)
     parser.add_argument('--mode', default='train', type=str)
     parser.add_argument('--test_img', default='pose.jpeg', type=str)
+    parser.add_argument('--save_path', default='.', type=str)
     parser.add_argument('--gpu', default='0', type=str)
     parser.add_argument('--epoch', default=100, type=int)
     parser.add_argument('--cpu', action='store_true', default=False, help='Use CPU instead of GPU or not?')
