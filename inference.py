@@ -4,7 +4,7 @@ import argparse
 import numpy as np
 import sys
 import os
-from time import sleep
+from time import sleep, time
 from tqdm import tqdm
 from imutils.video import FPS
 from unipose import detect, get_model
@@ -63,9 +63,13 @@ if args.path == "webcam":
     cv2.destroyAllWindows()
 elif os.path.isdir(args.path):
     # directories of images
+    save_path = "run/%i" % (int(time()))
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+    
     for fn in os.listdir(args.path):
         file = os.path.join(args.path, fn)
-        new_filename = file[:-4] + "_detected" + file[-4:]
+        new_filename = os.path.join(save_path, fn[:-4] + "_detected" + fn[-4:])
         image = cv2.imread(file)
         if args.gpu:
             results = person_detector(image).xyxy[0].cpu().detach().numpy()
