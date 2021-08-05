@@ -37,8 +37,12 @@ from torchsummary import summary
 from PIL import Image
 
 
-def get_model(ckpt="checkpoint_best.pth.tar", cpu=True):
-    model = unipose("MPII", num_classes=16, backbone='resnet', 
+def get_model(ckpt, dataset, cpu):
+    if dataset   ==  "LSP":
+        numClasses  = 14
+    elif dataset == "MPII":
+        numClasses  = 16
+    model = unipose(dataset, num_classes=numClasses, backbone='resnet', 
                     output_stride=16,
                     sync_bn=True, freeze_bn=False, stride=8)
     print("Loading checkpoint...")
@@ -65,7 +69,7 @@ def get_model(ckpt="checkpoint_best.pth.tar", cpu=True):
     return model
 
 
-def detect(image, model, cpu=True):
+def detect(image, model, dataset, cpu=True):
     model.eval()
     ori_img = cv2.resize(image, (368, 368))
     img = np.array(ori_img, dtype=np.float32)
@@ -86,7 +90,7 @@ def detect(image, model, cpu=True):
     heat = F.interpolate(heat, size=input_var.size()[2:], mode='bilinear', align_corners=True)
 
     kpts = get_kpts(heat, img_h=368.0, img_w=368.0)
-    ori_img = draw_paint_simple(ori_img, kpts, "MPII")
+    ori_img = draw_paint_simple(ori_img, kpts, dataset)
 
     return ori_img
 

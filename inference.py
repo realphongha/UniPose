@@ -10,16 +10,19 @@ from unipose import detect, get_model
 
 parser = argparse.ArgumentParser(description="Run inference on videos")
 parser.add_argument("--path", default="webcam", type=str, help="Path to video. Leave it empty to use webcam")
-parser.add_argument("--ckpt", default="checkpoint_best.pth.tar", type=str, help="Path to pretrained model")
+parser.add_argument("--ckpt", default="checkpoint_best.pth.tar", type=str, help="Path to pose pretrained model")
+parser.add_argument("--ds", default="MPII", type=str, help="Pose model dataset")
+parser.add_argument("--conf", default=0.25, type=int, help="Person detection confident")
+parser.add_argument("--iou", default=0.45, type=int, help="Person detection IOU threshold")
 parser.add_argument("--gpu", action="store_true", default=False, help="Use GPU or not?")
 args = parser.parse_args()
 
 person_detector = torch.hub.load('ultralytics/yolov5', 'yolov5s')
-person_detector.conf = 0.25  # confidence threshold (0-1)
-person_detector.iou = 0.45  # NMS IoU threshold (0-1)
+person_detector.conf = args.conf  # confidence threshold (0-1)
+person_detector.iou = args.iou  # NMS IoU threshold (0-1)
 person_detector.classes = [0] # person
 
-pose_detector = get_model(args.ckpt)
+pose_detector = get_model(args.ckpt, args.ds, not args.gpu)
 
 if args.gpu:
     # person_detector = person_detector.cuda()
@@ -44,7 +47,7 @@ if args.path == "webcam":
             x1, y1, x2, y2 = res[:-2]
             x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
             cropped = frame[y1:y2, x1:x2]
-            cropped = detect(cropped, pose_detector, not args.gpu)
+            cropped = detect(cropped, pose_detector, args.ds, not args.gpu)
             cropped = cv2.resize(cropped, (x2-x1, y2-y1))
             frame[y1:y2, x1:x2] = cropped
             frame = cv2.rectangle(frame, (x1, y1, x2, y2), 
@@ -84,7 +87,7 @@ else:
             x1, y1, x2, y2 = res[:-2]
             x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
             cropped = frame[y1:y2, x1:x2]
-            cropped = detect(cropped, pose_detector, not args.gpu)
+            cropped = detect(cropped, pose_detector, args.ds, not args.gpu)
             cropped = cv2.resize(cropped, (x2-x1, y2-y1))
             frame[y1:y2, x1:x2] = cropped
             frame = cv2.rectangle(frame, (x1, y1, x2, y2), 
