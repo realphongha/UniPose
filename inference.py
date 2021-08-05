@@ -3,6 +3,7 @@ import cv2
 import argparse
 import numpy as np
 import sys
+import os
 from time import sleep
 from tqdm import tqdm
 from imutils.video import FPS
@@ -60,8 +61,28 @@ if args.path == "webcam":
 
     video_cap.release()
     cv2.destroyAllWindows()
-
+elif os.path.isdir(args.path):
+    # directories of images
+    for fn in os.listdir(args.path):
+        file = os.path.join(args.path, fn)
+        new_filename = file[:-4] + "_detected" + file[-4:]
+        image = cv2.imread(file)
+        if args.gpu:
+            results = person_detector(image).xyxy[0].cpu().detach().numpy()
+        else:
+            results = person_detector(image).xyxy[0].numpy()
+        for res in results:
+            x1, y1, x2, y2 = res[:-2]
+            x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+            cropped = image[y1:y2, x1:x2]
+            cropped = detect(cropped, pose_detector, args.ds, not args.gpu)
+            cropped = cv2.resize(cropped, (x2-x1, y2-y1))
+            image[y1:y2, x1:x2] = cropped
+            image = cv2.rectangle(image, (x1, y1, x2, y2), 
+                (255, 0, 0), 2)
+        cv2.imwrite(new_filename, image)
 else:
+    # video
     video_out = args.path[:-4] + '_detected' + args.path[-4:]
     video_reader = cv2.VideoCapture(args.path)
 
