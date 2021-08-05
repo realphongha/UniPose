@@ -148,22 +148,13 @@ class Trainer(object):
             model_dict = {}
 
             for k,v in p.items():
-                if k in state_dict:
+                if k in state_dict and state_dict[k].size() == v.size():
                     model_dict[k] = v
+                else:
+                    print("Ignoring loading parameters from", k)
 
             state_dict.update(model_dict)
-            try:
-                self.model.load_state_dict(state_dict)
-            except Exception as e:
-                print("Exception:", e)
-                state_dict = self.model.state_dict()
-                model_dict = {}
-
-                for k,v in p.items():
-                    if k in state_dict and "decoder" not in k:
-                        model_dict[k] = v
-                state_dict.update(model_dict)
-                self.model.load_state_dict(state_dict, strict=False)
+            self.model.load_state_dict(state_dict, strict=False)
             print("Loaded checkpoint!")
             
         self.isBest = 0

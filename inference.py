@@ -17,7 +17,7 @@ args = parser.parse_args()
 person_detector = torch.hub.load('ultralytics/yolov5', 'yolov5s')
 person_detector.conf = 0.25  # confidence threshold (0-1)
 person_detector.iou = 0.45  # NMS IoU threshold (0-1)
-person_detector.classes = [0]
+person_detector.classes = [0] # person
 
 pose_detector = get_model(args.ckpt)
 
