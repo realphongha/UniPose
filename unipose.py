@@ -114,6 +114,8 @@ class Trainer(object):
         self.step_size    = 13275
         self.sigma        = 3
         self.stride       = 8
+        
+        self.start_epoch  = 0
 
         cudnn.benchmark   = True
 
@@ -183,7 +185,6 @@ class Trainer(object):
         for i, (input, heatmap, centermap, img_path) in enumerate(tbar):
             learning_rate = adjust_learning_rate(self.optimizer, self.iters, self.lr, policy='step',
                                                  gamma=self.gamma, step_size=self.step_size)
-            print("LR:", learning_rate)
             input_var     =     input.cuda() if not self.args.cpu else input
             heatmap_var   =    heatmap.cuda() if not self.args.cpu else heatmap
 
@@ -262,7 +263,6 @@ class Trainer(object):
             if save:
                 if not self.args.model_name:
                     self.args.model_name = "checkpoint"
-                save_checkpoint({'state_dict': self.model.state_dict()}, self.isBest, self.args.save_path, self.args.model_name)
                 save_checkpoint(self, epoch, self.isBest, self.args.save_path, self.args.model_name)
                 print("Model saved to "+self.args.model_name)
 
@@ -344,7 +344,6 @@ if __name__ == "__main__":
     parser.add_argument('--cpu', action='store_true', default=False, help='Use CPU instead of GPU or not?')
     args = parser.parse_args()
 
-    starter_epoch =    0
     epochs        =  args.epoch
 
     args = parser.parse_args()
@@ -367,7 +366,7 @@ if __name__ == "__main__":
         quit()
 
     if args.mode.lower() == "train" or args.mode.lower() == "both":
-        for epoch in range(starter_epoch, epochs):
+        for epoch in range(trainer.start_epoch, epochs):
             trainer.training(epoch)
             trainer.validation(epoch)
         

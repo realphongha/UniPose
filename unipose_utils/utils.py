@@ -68,6 +68,7 @@ def save_checkpoint(trainer, epoch, is_best, path, filename='checkpoint'):
                  'best_pckh': trainer.bestPCKh,
                  }
         torch.save(state, os.path.join(path, filename + '_best.pth.tar'))
+        print("Saved checkpoint to %s" % os.path.join(path, filename + '_best.pth.tar'))
 
 def load_checkpoint(path, cpu, model=None, trainer=None):
     print("Loading checkpoint...")
@@ -85,10 +86,15 @@ def load_checkpoint(path, cpu, model=None, trainer=None):
     
     if trainer:
         trainer.iters = checkpoint['iters']
-        trainer.epoch = checkpoint['epoch']
+        trainer.start_epoch = checkpoint['epoch'] + 1
         trainer.isBest = checkpoint['best_map']
         trainer.bestPCK = checkpoint['best_pck']
         trainer.bestPCKh = checkpoint['best_pckh']
+
+        print("Loaded from checkpoint:")
+        print("mAP: %f, PCK: %f, PCKh: %f, iter: %i, epoch: %i" % 
+            (trainer.isBest, trainer.bestPCK, trainer.bestPCKh, 
+             trainer.iters, trainer.start_epoch))
 
     state_dict = trainer.model.state_dict() if trainer else model.state_dict()
     model_dict = {}
