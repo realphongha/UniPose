@@ -11,7 +11,7 @@ import math
 import os
 
 sys.path.append("..")
-from unipose_utils.utils import get_model_summary
+from unipose_utils.utils import get_model_summary, load_checkpoint
 from unipose_utils.utils import adjust_learning_rate as adjust_learning_rate
 from unipose_utils.utils import save_checkpoint      as save_checkpoint
 from unipose_utils.utils import printAccuracies      as printAccuracies
@@ -45,26 +45,27 @@ def get_model(ckpt, dataset, cpu):
     model = unipose(dataset, num_classes=numClasses, backbone='resnet', 
                     output_stride=16,
                     sync_bn=True, freeze_bn=False, stride=8)
-    print("Loading checkpoint...")
-    if cpu:
-        checkpoint = torch.load(ckpt, map_location=torch.device('cpu'))
-    else:
-        checkpoint = torch.load(ckpt)
-    if "state_dict" in checkpoint:
-        p = checkpoint['state_dict']
-    else:
-        p = checkpoint
+    load_checkpoint(ckpt, cpu, model)
+    # print("Loading checkpoint...")
+    # if cpu:
+    #     checkpoint = torch.load(ckpt, map_location=torch.device('cpu'))
+    # else:
+    #     checkpoint = torch.load(ckpt)
+    # if "state_dict" in checkpoint:
+    #     p = checkpoint['state_dict']
+    # else:
+    #     p = checkpoint
 
-    state_dict = model.state_dict()
-    model_dict = {}
+    # state_dict = model.state_dict()
+    # model_dict = {}
 
-    for k,v in p.items():
-        if k in state_dict:
-            model_dict[k] = v
+    # for k,v in p.items():
+    #     if k in state_dict:
+    #         model_dict[k] = v
 
-    state_dict.update(model_dict)
-    model.load_state_dict(state_dict)
-    print("Loaded checkpoint!")
+    # state_dict.update(model_dict)
+    # model.load_state_dict(state_dict)
+    # print("Loaded checkpoint!")
     model.eval()
     return model
 
@@ -138,28 +139,29 @@ class Trainer(object):
         self.iters       = 0
 
         if self.args.pretrained is not None:
-            print("Loading checkpoint...")
-            if args.cpu:
-                checkpoint = torch.load(self.args.pretrained, map_location=torch.device('cpu'))
-            else:
-                checkpoint = torch.load(self.args.pretrained)
-            if "state_dict" in checkpoint:
-                p = checkpoint['state_dict']
-            else:
-                p = checkpoint
+            load_checkpoint(self.args.pretrained, self.args.cpu, None, self)
+            # print("Loading checkpoint...")
+            # if args.cpu:
+            #     checkpoint = torch.load(self.args.pretrained, map_location=torch.device('cpu'))
+            # else:
+            #     checkpoint = torch.load(self.args.pretrained)
+            # if "state_dict" in checkpoint:
+            #     p = checkpoint['state_dict']
+            # else:
+            #     p = checkpoint
 
-            state_dict = self.model.state_dict()
-            model_dict = {}
+            # state_dict = self.model.state_dict()
+            # model_dict = {}
 
-            for k,v in p.items():
-                if k in state_dict and state_dict[k].size() == v.size():
-                    model_dict[k] = v
-                else:
-                    print("Ignoring loading parameters from", k)
+            # for k,v in p.items():
+            #     if k in state_dict and state_dict[k].size() == v.size():
+            #         model_dict[k] = v
+            #     else:
+            #         print("Ignoring loading parameters from", k)
 
-            state_dict.update(model_dict)
-            self.model.load_state_dict(state_dict, strict=False)
-            print("Loaded checkpoint!")
+            # state_dict.update(model_dict)
+            # self.model.load_state_dict(state_dict, strict=False)
+            # print("Loaded checkpoint!")
             
         self.isBest = 0
         self.bestPCK  = 0
@@ -181,7 +183,7 @@ class Trainer(object):
         for i, (input, heatmap, centermap, img_path) in enumerate(tbar):
             learning_rate = adjust_learning_rate(self.optimizer, self.iters, self.lr, policy='step',
                                                  gamma=self.gamma, step_size=self.step_size)
-
+            print("LR:", learning_rate)
             input_var     =     input.cuda() if not self.args.cpu else input
             heatmap_var   =    heatmap.cuda() if not self.args.cpu else heatmap
 
@@ -261,6 +263,7 @@ class Trainer(object):
                 if not self.args.model_name:
                     self.args.model_name = "checkpoint"
                 save_checkpoint({'state_dict': self.model.state_dict()}, self.isBest, self.args.save_path, self.args.model_name)
+                save_checkpoint(self, epoch, self.isBest, self.args.save_path, self.args.model_name)
                 print("Model saved to "+self.args.model_name)
 
         if mPCKh > self.bestPCKh:

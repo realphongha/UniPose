@@ -54,9 +54,57 @@ def adjust_learning_rate(optimizer, iters, base_lr, gamma, step_size, policy='st
     return lr
 
 
-def save_checkpoint(state, is_best, path, filename='checkpoint'):
+def save_checkpoint_old(state, is_best, path, filename='checkpoint'):
     if is_best:
         torch.save(state, os.path.join(path, filename + '_best.pth.tar'))
+
+def save_checkpoint(trainer, epoch, is_best, path, filename='checkpoint'):
+    if is_best:
+        state = {'state_dict': trainer.model.state_dict(),
+                 'iters': trainer.iters,
+                 'epoch': epoch,
+                 'best_map': trainer.isBest,
+                 'best_pck': trainer.bestPCK,
+                 'best_pckh': trainer.bestPCKh,
+                 }
+        torch.save(state, os.path.join(path, filename + '_best.pth.tar'))
+
+def load_checkpoint(path, cpu, model=None, trainer=None):
+    print("Loading checkpoint...")
+    if (model is None and trainer is None) or (model is not None and trainer is not None):
+        print("Please specify model or trainer to be loaded with checkpoint!")
+        quit()
+    if cpu:
+        checkpoint = torch.load(path, map_location=torch.device('cpu'))
+    else:
+        checkpoint = torch.load(path)
+    if "state_dict" in checkpoint:
+        p = checkpoint['state_dict']
+    else:
+        p = checkpoint
+    
+    if trainer:
+        trainer.iters = checkpoint['iters']
+        trainer.epoch = checkpoint['epoch']
+        trainer.isBest = checkpoint['best_map']
+        trainer.bestPCK = checkpoint['best_pck']
+        trainer.bestPCKh = checkpoint['best_pckh']
+
+    state_dict = trainer.model.state_dict() if trainer else model.state_dict()
+    model_dict = {}
+
+    for k,v in p.items():
+        if k in state_dict and state_dict[k].size() == v.size():
+            model_dict[k] = v
+        else:
+            print("Ignoring loading parameters from", k)
+
+    state_dict.update(model_dict)
+    if trainer:
+        trainer.model.load_state_dict(state_dict, strict=False)
+    else:
+        model.load_state_dict(state_dict, strict=False)
+    print("Loaded checkpoint!")
 
 
 def Config(filename):

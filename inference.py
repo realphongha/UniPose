@@ -64,6 +64,7 @@ if args.path == "webcam":
 elif os.path.isdir(args.path):
     # directories of images
     save_path = "run/%i" % (int(time()))
+    print("Saving results to %s" % save_path)
     if not os.path.exists(save_path):
         os.makedirs(save_path)
     
