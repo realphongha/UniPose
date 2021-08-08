@@ -67,8 +67,8 @@ def save_checkpoint(trainer, epoch, is_best, path, filename='checkpoint'):
                  'best_pck': trainer.bestPCK,
                  'best_pckh': trainer.bestPCKh,
                  }
-        torch.save(state, os.path.join(path, filename + '_best.pth.tar'))
-        print("Saved checkpoint to %s" % os.path.join(path, filename + '_best.pth.tar'))
+        torch.save(state, os.path.join(path, filename + '.pth.tar'))
+        print("Saved checkpoint to %s" % os.path.join(path, filename + '.pth.tar'))
 
 def load_checkpoint(path, cpu, model=None, trainer=None):
     print("Loading checkpoint...")
