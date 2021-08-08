@@ -273,7 +273,7 @@ class Trainer(object):
         if save:
             if not self.args.model_name:
                 self.args.model_name = "checkpoint"
-            save_checkpoint(self, epoch, True, self.args.save_path, self.args.model_name + "_lastest")
+            save_checkpoint(self, epoch, True, self.args.save_path, self.args.model_name + "_latest")
 
 
         print("Best AP = %.2f%%; PCK = %2.2f%%; PCKh = %2.2f%%" % (self.isBest*100, self.bestPCK*100,self.bestPCKh*100))
