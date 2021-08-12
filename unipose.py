@@ -140,6 +140,10 @@ class Trainer(object):
 
         self.iters       = 0
 
+        self.isBest = 0
+        self.bestPCK  = 0
+        self.bestPCKh = 0
+
         if self.args.pretrained is not None:
             load_checkpoint(self.args.pretrained, self.args.cpu, None, self)
             # print("Loading checkpoint...")
@@ -164,10 +168,6 @@ class Trainer(object):
             # state_dict.update(model_dict)
             # self.model.load_state_dict(state_dict, strict=False)
             # print("Loaded checkpoint!")
-            
-        self.isBest = 0
-        self.bestPCK  = 0
-        self.bestPCKh = 0
 
         # Print model summary and metrics
         if args.cpu:
