@@ -70,7 +70,7 @@ def save_checkpoint(trainer, epoch, is_best, path, filename='checkpoint'):
         torch.save(state, os.path.join(path, filename + '.pth.tar'))
         print("Saved checkpoint to %s" % os.path.join(path, filename + '.pth.tar'))
 
-def load_checkpoint(path, cpu, model=None, trainer=None):
+def load_checkpoint(path, cpu, model=None, trainer=None, resume=True):
     print("Loading checkpoint...")
     if (model is None and trainer is None) or (model is not None and trainer is not None):
         print("Please specify model or trainer to be loaded with checkpoint!")
@@ -84,7 +84,7 @@ def load_checkpoint(path, cpu, model=None, trainer=None):
     else:
         p = checkpoint
     
-    if trainer:
+    if trainer and 'iters' in checkpoint and resume:
         trainer.iters = checkpoint['iters']
         trainer.start_epoch = checkpoint['epoch'] + 1
         trainer.isBest = checkpoint['best_map']

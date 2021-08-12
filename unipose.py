@@ -45,7 +45,7 @@ def get_model(ckpt, dataset, cpu):
     model = unipose(dataset, num_classes=numClasses, backbone='resnet', 
                     output_stride=16,
                     sync_bn=True, freeze_bn=False, stride=8)
-    load_checkpoint(ckpt, cpu, model)
+    load_checkpoint(ckpt, cpu, model, False)
     # print("Loading checkpoint...")
     # if cpu:
     #     checkpoint = torch.load(ckpt, map_location=torch.device('cpu'))
@@ -145,7 +145,7 @@ class Trainer(object):
         self.bestPCKh = 0
 
         if self.args.pretrained is not None:
-            load_checkpoint(self.args.pretrained, self.args.cpu, None, self)
+            load_checkpoint(self.args.pretrained, self.args.cpu, None, self, True)
             # print("Loading checkpoint...")
             # if args.cpu:
             #     checkpoint = torch.load(self.args.pretrained, map_location=torch.device('cpu'))
@@ -347,6 +347,7 @@ if __name__ == "__main__":
     parser.add_argument('--gpu', default='0', type=str)
     parser.add_argument('--epoch', default=100, type=int)
     parser.add_argument('--cpu', action='store_true', default=False, help='Use CPU instead of GPU or not?')
+    parser.add_argument('--resume', action='store_true', default=False, help='Resuming training or not?')
     args = parser.parse_args()
 
     epochs        =  args.epoch
