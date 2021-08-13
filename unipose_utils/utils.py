@@ -72,7 +72,7 @@ def save_checkpoint(trainer, epoch, is_best, path, filename='checkpoint'):
 
 def load_checkpoint(path, cpu, model=None, trainer=None, resume=True):
     print("Loading checkpoint...")
-    if (model is None and trainer is None) or (model is not None and trainer is not None):
+    if (not model and not trainer) or (model and trainer):
         print("Please specify model or trainer to be loaded with checkpoint!")
         quit()
     if cpu:

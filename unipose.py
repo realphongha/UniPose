@@ -45,7 +45,7 @@ def get_model(ckpt, dataset, cpu):
     model = unipose(dataset, num_classes=numClasses, backbone='resnet', 
                     output_stride=16,
                     sync_bn=True, freeze_bn=False, stride=8)
-    load_checkpoint(ckpt, cpu, model, False)
+    load_checkpoint(ckpt, cpu, model, None, False)
     # print("Loading checkpoint...")
     # if cpu:
     #     checkpoint = torch.load(ckpt, map_location=torch.device('cpu'))
@@ -228,7 +228,8 @@ class Trainer(object):
             self.optimizer.zero_grad()
 
             heat = self.model(input_var)
-            loss_heat   = self.criterion(heat,  heatmap_var)
+            # loss_heat   = self.criterion(heat,  heatmap_var)
+            loss_heat   = self.criterion(heat[1:],  heatmap_var[1:])
 
             loss = loss_heat
 
